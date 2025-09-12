@@ -1,12 +1,52 @@
 from fastapi import FastAPI, UploadFile, HTTPException, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Dict, List, Optional
 import uuid
 import random
-import pandas as pd
+import csv
+from pathlib import Path
 
 app = FastAPI()
 
-doctor_data = pd.read_csv('parkinson_core_services_uk.csv')
+def load_doctors_from_csv() -> Dict[str, List[Dict]]:
+    doctors_by_postcode: Dict[str, List[Dict]] = {}
+    csv_path = Path('parkinson_core_services_uk.csv')
+    
+    if not csv_path.exists():
+        print(f"Warning: CSV file not found at {csv_path}")
+        return {}
+        
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                postcode = row.get('postcode', '').strip()
+                if postcode:
+                    if postcode not in doctors_by_postcode:
+                        doctors_by_postcode[postcode] = []
+                    # Clean and transform the row data
+                    service_info = {
+                        'organization': row.get('organization', '').strip(),
+                        'service_type': row.get('service_type', '').strip(),
+                        'address': row.get('address', '').strip(),
+                        'city': row.get('city', '').strip(),
+                        'state': row.get('state', '').strip(),
+                        'country': row.get('country', '').strip(),
+                        'latitude': row.get('latitude', '').strip(),
+                        'longitude': row.get('longitude', '').strip(),
+                        'public_telephone': row.get('public_telephone', '').strip()
+                    }
+                    # Remove any empty fields
+                    service_info = {k: v for k, v in service_info.items() if v}
+                    doctors_by_postcode[postcode].append(service_info)
+    except Exception as e:
+        print(f"Error loading CSV: {e}")
+        return {}
+    
+    return doctors_by_postcode
+
+# Load doctors data from CSV
+DOCTORS_DB = load_doctors_from_csv()
 
 # Enable CORS
 app.add_middleware(
@@ -47,25 +87,39 @@ async def get_result(session_id: str):
 async def root():
     return {"status": "healthy"}
 
-@app.get("/nearby-doctors/{area_code}")
-async def get_nearby_doctors(
-    area_code: str = Path(..., description="Australian postal area code (e.g., 2000 for Sydney CBD)")
+@app.get("/nearby-services/{postcode}")
+async def get_nearby_services(
+    postcode: str = Path(..., description="UK postal code"),
+    service_type: str | None = Query(None, description="Filter services by type (e.g., 'clinic', 'hospital')")
 ):
-    # Check if area code exists in our database
-    if area_code not in doctor_data['postcode'].unique():
+    # Check if postcode exists in our database
+    if postcode not in DOCTORS_DB:
         raise HTTPException(
             status_code=404,
-            detail=f"No doctors found for area code {area_code}"
+            detail=f"No services found for postcode {postcode}"
         )
     
-    doctors = doctor_data[doctor_data['postcode'] == area_code].to_dict(orient='records')
+    services = DOCTORS_DB[postcode]
     
+    # Filter by service_type if provided
+    if service_type:
+        services = [
+            service for service in services
+            if service_type.lower() in service.get("service_type", "").lower()
+        ]
     
-        
-    if not doctors:
+    if not services:
         raise HTTPException(
             status_code=404,
-            detail=f"No doctors found matching the criteria"
+            detail=f"No services found matching the criteria"
         )
     
-    return {"doctors": doctors}
+    return {
+        "postcode": postcode,
+        "services": services,
+        "total_count": len(services),
+        "location": {
+            "latitude": services[0].get("latitude"),
+            "longitude": services[0].get("longitude")
+        } if services else None
+    }
