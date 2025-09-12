@@ -3,7 +3,6 @@
   "functions": {
     "main.py": {
       "runtime": "python3.11",
-      "maxLambdaSize": "50mb",
       "includeFiles": "parkinson_core_services_uk.csv"
     }
   },
