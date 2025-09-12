@@ -1,16 +1,16 @@
-from fastapi import FastAPI, UploadFile, HTTPException, Query, Path
+from fastapi import FastAPI, UploadFile, HTTPException, Query, Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, List, Optional
 import uuid
 import random
 import csv
-from pathlib import Path
+from pathlib import Path as FilePath
 
 app = FastAPI()
 
 def load_doctors_from_csv() -> Dict[str, List[Dict]]:
     doctors_by_postcode: Dict[str, List[Dict]] = {}
-    csv_path = Path('parkinson_core_services_uk.csv')
+    csv_path = FilePath('parkinson_core_services_uk.csv')
     
     if not csv_path.exists():
         print(f"Warning: CSV file not found at {csv_path}")
@@ -89,7 +89,7 @@ async def root():
 
 @app.get("/nearby-services/{postcode}")
 async def get_nearby_services(
-    postcode: str = Path(..., description="UK postal code"),
+    postcode: str = PathParam(..., description="UK postal code"),
     service_type: str | None = Query(None, description="Filter services by type (e.g., 'clinic', 'hospital')")
 ):
     # Check if postcode exists in our database
