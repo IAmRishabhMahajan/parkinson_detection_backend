@@ -1,12 +1,12 @@
 {
   "version": 2,
   "functions": {
-    "api/*.py": {
+    "main.py": {
       "runtime": "python3.11",
-      "maxLambdaSize": "50mb"
+      "maxLambdaSize": "50mb",
+      "includeFiles": "parkinson_core_services_uk.csv"
     }
   },
-  "includeFiles": ["parkinson_core_services_uk.csv"],
   "routes": [
     { "src": "/(.*)", "dest": "main.py" }
   ]
