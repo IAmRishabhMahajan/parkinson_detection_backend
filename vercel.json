@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "main.py": {
-      "runtime": "python3.11",
+      "runtime": "@vercel/python@3.11",
       "includeFiles": "parkinson_core_services_uk.csv"
     }
   },
