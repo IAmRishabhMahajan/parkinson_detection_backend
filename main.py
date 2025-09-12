@@ -1,9 +1,12 @@
-from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile, HTTPException, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
 import uuid
 import random
+import pandas as pd
 
 app = FastAPI()
+
+doctor_data = pd.read_csv('parkinson_core_services_uk.csv')
 
 # Enable CORS
 app.add_middleware(
@@ -43,3 +46,26 @@ async def get_result(session_id: str):
 @app.get("/")
 async def root():
     return {"status": "healthy"}
+
+@app.get("/nearby-doctors/{area_code}")
+async def get_nearby_doctors(
+    area_code: str = Path(..., description="Australian postal area code (e.g., 2000 for Sydney CBD)")
+):
+    # Check if area code exists in our database
+    if area_code not in doctor_data['postcode'].unique():
+        raise HTTPException(
+            status_code=404,
+            detail=f"No doctors found for area code {area_code}"
+        )
+    
+    doctors = doctor_data[doctor_data['postcode'] == area_code].to_dict(orient='records')
+    
+    
+        
+    if not doctors:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No doctors found matching the criteria"
+        )
+    
+    return {"doctors": doctors}

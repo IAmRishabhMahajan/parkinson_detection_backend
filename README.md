@@ -1,9 +1,12 @@
 # Parkinson Detection Backend
 
-A FastAPI-based backend service that provides two main endpoints:
+A FastAPI-based backend service that provides the following endpoints:
 
 1. `/upload-audio` (POST) - Upload an audio file and receive a session ID
 2. `/get-result/{session_id}` (GET) - Get results for a given session ID
+3. `/nearby-doctors/{area_code}` (GET) - Get list of nearby doctors based on Australian area code
+   - Optional query parameter: `specialty` to filter doctors by specialty
+   - Example: `/nearby-doctors/2000?specialty=neurologist`
 
 ## Local Development
 
