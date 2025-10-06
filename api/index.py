@@ -62,10 +62,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+git 
 # Load the ML model and scaler
-MODEL_PATH = Path('../model_feature_analysis/lightgbm_model.pkl')
-SCALER_PATH = Path('../model_feature_analysis/scaler.pkl')
+print(Path('/../'))
+MODEL_PATH = Path('/model_feature_analysis/lightgbm_model.pkl')
+SCALER_PATH = Path('/model_feature_analysis/scaler.pkl')
 SESSIONS_PATH = Path('../sessions.csv')
 
 # Define the features we'll use
