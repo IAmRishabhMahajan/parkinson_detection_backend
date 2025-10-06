@@ -1,10 +1,16 @@
-from fastapi import FastAPI, UploadFile, HTTPException, Query, Path as PathParam
+from fastapi import FastAPI, UploadFile, HTTPException, Query, Path
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, List, Optional
 import uuid
-import random
 import csv
-from pathlib import Path as FilePath
+import os
+import numpy as np
+import pandas as pd
+import librosa
+import pickle
+import io
+from pathlib import Path
+from datetime import datetime
 
 app = FastAPI()
 
@@ -57,28 +63,120 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Store session IDs (in a real application, you might want to use a database)
-sessions = set()
+# Load the ML model and scaler
+MODEL_PATH = Path('model_feature_analysis/model.pkl')
+SCALER_PATH = Path('model_feature_analysis/scaler.pkl')
+SESSIONS_PATH = Path('sessions.csv')
+
+# Define the features we'll use
+FEATURES = ['HNR15', 'HNR25', 'HNR35', 'HNR38', 'MFCC0', 'MFCC3', 'MFCC4', 'MFCC5', 
+           'MFCC7', 'MFCC9', 'MFCC10', 'MFCC12', 'Delta0', 'Delta1', 'Delta2', 
+           'Delta3', 'Delta4', 'Delta5', 'Delta7', 'Delta10', 'Delta11']
+
+# Load model and scaler
+with open(MODEL_PATH, 'rb') as f:
+    model = pickle.load(f)
+with open(SCALER_PATH, 'rb') as f:
+    scaler = pickle.load(f)
+
+# Create sessions.csv if it doesn't exist
+if not SESSIONS_PATH.exists():
+    with open(SESSIONS_PATH, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['session_id', 'timestamp', 'result', 'filename'])
+
+def extract_audio_features(audio_data: bytes) -> np.ndarray:
+    """Extract MFCC, HNR and delta features from audio data."""
+    # Load audio from bytes
+    y, sr = librosa.load(io.BytesIO(audio_data), sr=None)
+    
+    # Extract MFCC features (13 coefficients)
+    mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+    
+    # Extract HNR features
+    y_harmonic = librosa.effects.harmonic(y)
+    hnr_values = []
+    for freq in [15, 25, 35, 38]:  # HNR at different frequencies
+        hnr = np.mean(y_harmonic[::freq])
+        hnr_values.append(hnr)
+    
+    # Extract delta features
+    deltas = librosa.feature.delta(mfccs)
+    
+    # Create feature vector matching the expected features
+    feature_dict = {}
+    
+    # Add HNR features
+    for i, freq in enumerate([15, 25, 35, 38]):
+        feature_dict[f'HNR{freq}'] = hnr_values[i]
+    
+    # Add MFCC features
+    for i in range(13):
+        feature_dict[f'MFCC{i}'] = np.mean(mfccs[i])
+    
+    # Add Delta features
+    for i in range(13):
+        feature_dict[f'Delta{i}'] = np.mean(deltas[i])
+    
+    # Select only the features we need in the correct order
+    features = np.array([feature_dict[f] for f in FEATURES])
+    
+    return features
+
+def save_session(session_id: str, result: float, filename: str):
+    """Save session information to CSV file."""
+    with open(SESSIONS_PATH, 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([session_id, datetime.now().isoformat(), result, filename])
+
+def get_session_result(session_id: str) -> Optional[float]:
+    """Get result for a specific session ID."""
+    if not SESSIONS_PATH.exists():
+        return None
+        
+    df = pd.read_csv(SESSIONS_PATH)
+    session_data = df[df['session_id'] == session_id]
+    
+    if session_data.empty:
+        return None
+        
+    return float(session_data.iloc[0]['result'])
 
 @app.post("/upload-audio")
 async def upload_audio(audio_file: UploadFile):
     if not audio_file.filename.endswith(('.mp3', '.wav', '.m4a')):
         raise HTTPException(status_code=400, detail="Invalid file format. Please upload an audio file.")
     
-    # Generate a unique session ID
-    session_id = str(uuid.uuid4())
-    sessions.add(session_id)
-    
-    # In a real application, you would save the audio file and process it
-    return {"session_id": session_id}
+    try:
+        # Generate session ID
+        session_id = str(uuid.uuid4())
+        
+        # Read the audio file
+        audio_data = await audio_file.read()
+        
+        # Extract features
+        features = extract_audio_features(audio_data)
+        
+        # Scale features
+        scaled_features = scaler.transform(features.reshape(1, -1))
+        
+        # Get prediction
+        result = float(model.predict_proba(scaled_features)[0][1])  # Probability of Parkinson's
+        
+        # Save session information
+        save_session(session_id, result, audio_file.filename)
+        
+        return {"session_id": session_id}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing audio: {str(e)}")
 
 @app.get("/get-result/{session_id}")
 async def get_result(session_id: str):
-    if session_id not in sessions:
-        raise HTTPException(status_code=404, detail="Session not found")
+    result = get_session_result(session_id)
     
-    # Generate a random number (this is just for demonstration)
-    result = random.uniform(0, 1)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Session not found")
     
     return {"result": result}
 
@@ -89,7 +187,7 @@ async def root():
 
 @app.get("/nearby-services/{postcode}")
 async def get_nearby_services(
-    postcode: str = PathParam(..., description="UK postal code"),
+    postcode: str = Path(..., description="UK postal code"),
     service_type: str | None = Query(None, description="Filter services by type (e.g., 'clinic', 'hospital')")
 ):
     # Check if postcode exists in our database
