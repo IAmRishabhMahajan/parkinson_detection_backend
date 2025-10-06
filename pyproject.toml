@@ -3,7 +3,7 @@ name = "parkinson-detection-backend"
 version = "0.1.0"
 description = "FastAPI backend for Parkinson detection using librosa and scikit-learn"
 # Align the project Python requirement with the runtime specified in vercel.json
-requires-python = ">=3.11
+requires-python = ">=3.11"
 dependencies = [
     "fastapi==0.95.2",
     "uvicorn==0.22.0",
