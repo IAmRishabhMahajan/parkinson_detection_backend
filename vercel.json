@@ -1,15 +1,24 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "main.py": {
-      "runtime": "python3.11",
-      "excludeFiles": "{tests/**,__pycache__/**,**/*.csv}"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python@3.1.0",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "runtime": "python3.9",
+        "includeFiles": [
+          "model_feature_analysis/**/*",
+          "sessions.csv",
+          "parkinson_core_services_uk.csv"
+        ]
+      }
     }
-  },
+  ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "main.py"
+      "dest": "api/index.py"
     }
   ]
 }
