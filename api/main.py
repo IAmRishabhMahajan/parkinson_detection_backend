@@ -28,7 +28,7 @@ from datetime import datetime
 
 def load_doctors_from_csv() -> Dict[str, List[Dict]]:
     doctors_by_postcode: Dict[str, List[Dict]] = {}
-    csv_path = Path('parkinson_core_services_uk.csv')
+    csv_path = Path('../parkinson_core_services_uk.csv')
     
     if not csv_path.exists():
         print(f"Warning: CSV file not found at {csv_path}")
@@ -75,9 +75,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # Load the ML model and scaler
-MODEL_PATH = Path('api/model_feature_analysis/lightgbmmodel.pkl')
-SCALER_PATH = Path('api/model_feature_analysis/scaler.pkl')
-SESSIONS_PATH = Path('sessions.csv')
+MODEL_PATH = Path('model_feature_analysis/lightgbmmodel.pkl')
+SCALER_PATH = Path('model_feature_analysis/scaler.pkl')
+SESSIONS_PATH = Path('../sessions.csv')
 
 # Define the features we'll use
 FEATURES = ['HNR15', 'HNR25', 'HNR35', 'HNR38', 'MFCC0', 'MFCC3', 'MFCC4', 'MFCC5', 
