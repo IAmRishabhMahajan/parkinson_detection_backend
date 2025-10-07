@@ -20,7 +20,7 @@ import os
 import numpy as np
 import pandas as pd
 import librosa
-import pickle
+import joblib
 import io
 from pathlib import Path
 from datetime import datetime
@@ -75,8 +75,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # Load the ML model and scaler
-print(Path('/../'))
-MODEL_PATH = Path('model_feature_analysis/lightgbm_model.pkl')
+MODEL_PATH = Path('model_feature_analysis/lightgbmmodel.pkl')
 SCALER_PATH = Path('model_feature_analysis/scaler.pkl')
 SESSIONS_PATH = Path('sessions.csv')
 
@@ -87,9 +86,9 @@ FEATURES = ['HNR15', 'HNR25', 'HNR35', 'HNR38', 'MFCC0', 'MFCC3', 'MFCC4', 'MFCC
 
 # Load model and scaler
 with open(MODEL_PATH, 'rb') as f:
-    model = pickle.load(f)
+    model = joblib.load(f)
 with open(SCALER_PATH, 'rb') as f:
-    scaler = pickle.load(f)
+    scaler = joblib.load(f)
 
 # Create sessions.csv if it doesn't exist
 if not SESSIONS_PATH.exists():
@@ -199,7 +198,7 @@ async def root():
 
 @app.get("/api/nearby-services/{postcode}")
 async def get_nearby_services(
-    postcode: str = Path(..., description="UK postal code"),
+    postcode: str ,
     service_type: str | None = Query(None, description="Filter services by type (e.g., 'clinic', 'hospital')")
 ):
     # Check if postcode exists in our database
