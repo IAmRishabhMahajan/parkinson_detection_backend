@@ -75,8 +75,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # Load the ML model and scaler
-MODEL_PATH = Path('model_feature_analysis/lightgbmmodel.pkl')
-SCALER_PATH = Path('model_feature_analysis/scaler.pkl')
+MODEL_PATH = Path('api/model_feature_analysis/lightgbmmodel.pkl')
+SCALER_PATH = Path('api/model_feature_analysis/scaler.pkl')
 SESSIONS_PATH = Path('sessions.csv')
 
 # Define the features we'll use
