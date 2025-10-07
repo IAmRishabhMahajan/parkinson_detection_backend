@@ -1,5 +1,18 @@
-from fastapi import FastAPI, UploadFile, HTTPException, Query, Path
-from fastapi.middleware.cors import CORSMiddleware
+import traceback
+
+try:
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+except Exception as e:
+    print("❌ FastAPI import error:", e)
+    traceback.print_exc()
+
+print("✅ Starting app import process...")
+
+app = FastAPI()
+print("✅ FastAPI app created successfully.")
+
+from fastapi import UploadFile, HTTPException, Query, Path
 from typing import Dict, List, Optional
 import uuid
 import csv
@@ -12,7 +25,6 @@ import io
 from pathlib import Path
 from datetime import datetime
 
-app = FastAPI()
 
 def load_doctors_from_csv() -> Dict[str, List[Dict]]:
     doctors_by_postcode: Dict[str, List[Dict]] = {}
