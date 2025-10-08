@@ -23,5 +23,6 @@ COPY . .
 EXPOSE 8000
 
 # Run with Gunicorn + Uvicorn worker
-CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0$PORT", "api.main:app"]
+CMD bash -c "gunicorn -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} api.main:app"
+
 
