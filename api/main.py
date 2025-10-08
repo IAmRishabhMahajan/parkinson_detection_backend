@@ -96,43 +96,50 @@ if not SESSIONS_PATH.exists():
         writer = csv.writer(f)
         writer.writerow(['session_id', 'timestamp', 'result', 'filename'])
 
-def extract_audio_features(audio_data: bytes) -> np.ndarray:
-    """Extract MFCC, HNR and delta features from audio data."""
+def extract_audio_features(audio_data: bytes) -> pd.DataFrame:
+    """Extract MFCC, HNR and delta features from audio data and return a DataFrame
+    with columns ordered according to FEATURES.
+    """
     # Load audio from bytes
     y, sr = librosa.load(io.BytesIO(audio_data), sr=None)
-    
+
     # Extract MFCC features (13 coefficients)
     mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-    
-    # Extract HNR features
+
+    # Extract HNR features (approximate via harmonic component statistics)
     y_harmonic = librosa.effects.harmonic(y)
     hnr_values = []
-    for freq in [15, 25, 35, 38]:  # HNR at different frequencies
-        hnr = np.mean(y_harmonic[::freq])
+    for freq in [15, 25, 35, 38]:  # HNR at different frequencies (as proxy)
+        # use decimated harmonic signal mean as a proxy for HNR at that frame
+        if len(y_harmonic) >= freq:
+            hnr = float(np.mean(y_harmonic[::freq]))
+        else:
+            hnr = float(np.mean(y_harmonic))
         hnr_values.append(hnr)
-    
+
     # Extract delta features
     deltas = librosa.feature.delta(mfccs)
-    
-    # Create feature vector matching the expected features
+
+    # Build feature dict
     feature_dict = {}
-    
+
     # Add HNR features
     for i, freq in enumerate([15, 25, 35, 38]):
         feature_dict[f'HNR{freq}'] = hnr_values[i]
-    
-    # Add MFCC features
+
+    # Add MFCC features (mean over time)
     for i in range(13):
-        feature_dict[f'MFCC{i}'] = np.mean(mfccs[i])
-    
-    # Add Delta features
+        feature_dict[f'MFCC{i}'] = float(np.mean(mfccs[i]))
+
+    # Add Delta features (mean over time)
     for i in range(13):
-        feature_dict[f'Delta{i}'] = np.mean(deltas[i])
-    
-    # Select only the features we need in the correct order
-    features = np.array([feature_dict[f] for f in FEATURES])
-    
-    return features
+        feature_dict[f'Delta{i}'] = float(np.mean(deltas[i]))
+
+    # Create DataFrame with columns in FEATURES order. If a FEATURES entry
+    # is missing from feature_dict, fill with NaN to keep columns aligned.
+    row = {f: feature_dict.get(f, np.nan) for f in FEATURES}
+    df = pd.DataFrame([row], columns=FEATURES)
+    return df
 
 def save_session(session_id: str, result: float, filename: str):
     """Save session information to CSV file."""
@@ -165,14 +172,25 @@ async def upload_audio(audio_file: UploadFile):
         # Read the audio file
         audio_data = await audio_file.read()
         
-        # Extract features
-        features = extract_audio_features(audio_data)
-        
-        # Scale features
-        scaled_features = scaler.transform(features.reshape(1, -1))
-        
-        # Get prediction
-        result = float(model.predict_proba(scaled_features)[0][1])  # Probability of Parkinson's
+        # Extract features as DataFrame
+        features_df = extract_audio_features(audio_data)
+
+        # Ensure columns order matches scaler expectations
+        try:
+            scaled_features = scaler.transform(features_df)
+        except Exception:
+            # As a fallback, convert to numpy array with correct order
+            scaled_features = scaler.transform(features_df.values)
+
+        # Get prediction (model expects 2D array)
+        # If model supports predict_proba use that, otherwise use predict
+        try:
+            prob = model.predict_proba(scaled_features)[0]
+            # assume positive class is index 1
+            result = float(prob[1])
+        except Exception:
+            pred = model.predict(scaled_features)[0]
+            result = float(pred)
         
         # Save session information
         save_session(session_id, result, audio_file.filename)
