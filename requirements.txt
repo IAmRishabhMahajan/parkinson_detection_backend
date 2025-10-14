@@ -11,3 +11,5 @@ lightgbm==4.6.0
 joblib==1.4.2
 gunicorn==22.0.0
 numpy==1.26.4
+soundfile
+torch

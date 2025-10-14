@@ -25,4 +25,8 @@ EXPOSE 8000
 # Run with Gunicorn + Uvicorn worker
 CMD bash -c "gunicorn -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:${PORT} api.main:app"
 
+# ENV PORT=8000
+# CMD ["gunicorn", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "api.main:app"]
+
+
 
